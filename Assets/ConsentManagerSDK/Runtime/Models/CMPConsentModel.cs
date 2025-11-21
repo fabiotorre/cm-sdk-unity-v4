@@ -462,7 +462,22 @@ namespace ConsentManagerSDK
         public override FlexibleId ReadJson(JsonReader reader, Type objectType, FlexibleId existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Integer)
-                return new FlexibleId(Convert.ToInt32(reader.Value));
+            {
+                try
+                {
+                    long longValue = Convert.ToInt64(reader.Value);
+                    if (longValue >= int.MinValue && longValue <= int.MaxValue)
+                    {
+                        return new FlexibleId((int)longValue);
+                    }
+
+                    return new FlexibleId(longValue.ToString());
+                }
+                catch (Exception)
+                {
+                    return new FlexibleId(reader.Value?.ToString() ?? string.Empty);
+                }
+            }
             else if (reader.TokenType == JsonToken.String)
                 return new FlexibleId(reader.Value.ToString());
             
@@ -486,7 +501,22 @@ namespace ConsentManagerSDK
         public override MetadataValue ReadJson(JsonReader reader, Type objectType, MetadataValue existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Integer)
-                return new MetadataValue(Convert.ToInt32(reader.Value));
+            {
+                try
+                {
+                    long longValue = Convert.ToInt64(reader.Value);
+                    if (longValue >= int.MinValue && longValue <= int.MaxValue)
+                    {
+                        return new MetadataValue((int)longValue);
+                    }
+
+                    return new MetadataValue(longValue.ToString());
+                }
+                catch (Exception)
+                {
+                    return new MetadataValue(reader.Value?.ToString() ?? string.Empty);
+                }
+            }
             else if (reader.TokenType == JsonToken.String)
                 return new MetadataValue(reader.Value.ToString());
             
@@ -494,4 +524,3 @@ namespace ConsentManagerSDK
         }
     }
 }
-
