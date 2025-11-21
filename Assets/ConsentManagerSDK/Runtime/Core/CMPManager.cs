@@ -488,6 +488,7 @@ namespace ConsentManagerSDK
         {
             Debug.Log("[CMPManager] Close signal received - hiding consent layer");
             _webViewController?.Hide();
+            _webViewManager?.Destroy();
             OnConsentLayerClosed?.Invoke();
         }
 

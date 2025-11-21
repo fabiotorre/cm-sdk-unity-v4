@@ -24,15 +24,13 @@ public class CMPDemoController : MonoBehaviour
     [Header("UI References (Optional)")]
     [SerializeField] private Text statusText;
     [SerializeField] private Text consentStatusText;
-    [SerializeField] private Button checkAndOpenButton;
-    [SerializeField] private Button forceOpenButton;
-    [SerializeField] private Button acceptAllButton;
-    [SerializeField] private Button rejectAllButton;
-    [SerializeField] private Button resetButton;
-    [SerializeField] private Button exportButton;
-    [SerializeField] private Button getStatusButton;
 
     private CMPManager _cmpManager;
+    private Transform _buttonContent;
+    private readonly string[] _sampleVendors = { "s2790", "s2791" };
+    private readonly string[] _samplePurposes = { "c52", "c53" };
+    private const string SampleImportString = "Q1FaRWVQQVFaRWVQQUFmYjRCRU5DQUZnQVBMQUFFTEFBQWlnRjV3QVFGNWdYbkFCQVhtQUFBI181MV81Ml81NF8jX3MxMDUyX3MxX3MyNl9zMjYxMl9zOTA1X3MxNDQ4X2M3MzczN19VXyMxLS0tIw";
+    private int _currentAttStatus;
 
     private void Start()
     {
@@ -53,8 +51,19 @@ public class CMPDemoController : MonoBehaviour
 
     private void EnsureDemoUI()
     {
-        if (statusText != null && consentStatusText != null && checkAndOpenButton != null)
+        if (_buttonContent != null)
             return;
+
+        if (statusText != null)
+        {
+            Destroy(statusText.gameObject);
+            statusText = null;
+        }
+        if (consentStatusText != null)
+        {
+            Destroy(consentStatusText.gameObject);
+            consentStatusText = null;
+        }
 
         var existingCanvas = FindObjectOfType<Canvas>();
         if (existingCanvas == null)
@@ -77,24 +86,77 @@ public class CMPDemoController : MonoBehaviour
         panel.transform.SetParent(existingCanvas.transform, false);
         var rect = panel.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0.05f, 0.05f);
-        rect.anchorMax = new Vector2(0.95f, 0.5f);
+        rect.anchorMax = new Vector2(0.95f, 0.95f);
         rect.offsetMin = rect.offsetMax = Vector2.zero;
-        panel.GetComponent<Image>().color = new Color(0, 0, 0, 0.4f);
+        panel.GetComponent<Image>().color = new Color(0, 0, 0, 0.35f);
 
-        var layout = panel.AddComponent<VerticalLayoutGroup>();
-        layout.spacing = 8f;
-        layout.padding = new RectOffset(20, 20, 20, 20);
+        var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
+        panelLayout.spacing = 20f;
+        panelLayout.padding = new RectOffset(20, 20, 20, 20);
+        panelLayout.childAlignment = TextAnchor.UpperLeft;
+        panelLayout.childControlHeight = true;
+        panelLayout.childControlWidth = true;
+        panelLayout.childForceExpandHeight = true;
 
-        statusText = CreateText(panel.transform, "Status Text", "Status output will appear here");
-        consentStatusText = CreateText(panel.transform, "Consent Status Text", "Consent status will appear here");
+        var statusContainer = new GameObject("Status Container", typeof(RectTransform), typeof(VerticalLayoutGroup));
+        statusContainer.transform.SetParent(panel.transform, false);
+        var statusLayout = statusContainer.GetComponent<VerticalLayoutGroup>();
+        statusLayout.spacing = 10f;
+        statusLayout.childAlignment = TextAnchor.UpperLeft;
+        statusLayout.childControlWidth = true;
+        statusLayout.childControlHeight = true;
+        statusLayout.childForceExpandHeight = false;
+        var statusLayoutElement = statusContainer.AddComponent<LayoutElement>();
+        statusLayoutElement.preferredHeight = 140f;
 
-        checkAndOpenButton = CreateButton(panel.transform, "Check & Open", () => CheckAndOpenAsync());
-        forceOpenButton = CreateButton(panel.transform, "Force Open", () => ForceOpenAsync());
-        acceptAllButton = CreateButton(panel.transform, "Accept All", () => AcceptAllAsync());
-        rejectAllButton = CreateButton(panel.transform, "Reject All", () => RejectAllAsync());
-        resetButton = CreateButton(panel.transform, "Reset Data", () => ResetAsync());
-        exportButton = CreateButton(panel.transform, "Export Consent", () => ExportConsent());
-        getStatusButton = CreateButton(panel.transform, "Get Status", () => GetUserStatus());
+        statusText = CreateText(statusContainer.transform, "Status Text", "Status output will appear here");
+        consentStatusText = CreateText(statusContainer.transform, "Consent Status Text", "Consent status will appear here");
+
+        var buttonArea = new GameObject("Button Area", typeof(RectTransform));
+        buttonArea.transform.SetParent(panel.transform, false);
+        var buttonsLayoutElement = buttonArea.AddComponent<LayoutElement>();
+        buttonsLayoutElement.preferredHeight = 500f;
+
+        var scrollView = new GameObject("ScrollView", typeof(RectTransform), typeof(ScrollRect));
+        scrollView.transform.SetParent(buttonArea.transform, false);
+        var scrollRect = scrollView.GetComponent<ScrollRect>();
+        var scrollRectTransform = scrollView.GetComponent<RectTransform>();
+        scrollRectTransform.anchorMin = Vector2.zero;
+        scrollRectTransform.anchorMax = Vector2.one;
+        scrollRectTransform.offsetMin = Vector2.zero;
+        scrollRectTransform.offsetMax = Vector2.zero;
+
+        var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+        viewport.transform.SetParent(scrollView.transform, false);
+        var viewportRect = viewport.GetComponent<RectTransform>();
+        viewportRect.anchorMin = Vector2.zero;
+        viewportRect.anchorMax = Vector2.one;
+        viewportRect.offsetMin = Vector2.zero;
+        viewportRect.offsetMax = Vector2.zero;
+        viewport.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+
+        var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        content.transform.SetParent(viewport.transform, false);
+        var contentRect = content.GetComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0.5f, 1f);
+        var contentLayout = content.GetComponent<VerticalLayoutGroup>();
+        contentLayout.spacing = 10f;
+        contentLayout.padding = new RectOffset(10, 10, 10, 10);
+        contentLayout.childControlWidth = true;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandWidth = true;
+        var fitter = content.GetComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scrollRect.viewport = viewportRect;
+        scrollRect.content = contentRect;
+        scrollRect.horizontal = false;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+        _buttonContent = content.transform;
+        AddDemoButtons();
     }
 
     private Text CreateText(Transform parent, string name, string initialValue)
@@ -103,8 +165,15 @@ public class CMPDemoController : MonoBehaviour
         go.transform.SetParent(parent, false);
         var textComponent = go.GetComponent<Text>();
         textComponent.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        textComponent.fontSize = Mathf.RoundToInt(Mathf.Max(32f, Screen.width * 0.03f));
         textComponent.text = initialValue;
+        textComponent.alignment = TextAnchor.UpperLeft;
+        textComponent.horizontalOverflow = HorizontalWrapMode.Wrap;
+        textComponent.verticalOverflow = VerticalWrapMode.Overflow;
         textComponent.color = Color.white;
+        var layout = go.AddComponent<LayoutElement>();
+        layout.minHeight = 80f;
+        layout.flexibleHeight = 1f;
         return textComponent;
     }
 
@@ -115,11 +184,15 @@ public class CMPDemoController : MonoBehaviour
 
         var image = buttonGO.GetComponent<Image>();
         image.color = new Color(0.1f, 0.4f, 0.8f, 0.8f);
+        var layout = buttonGO.AddComponent<LayoutElement>();
+        layout.minHeight = 90f;
+        layout.flexibleHeight = 0f;
 
         var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
         textGO.transform.SetParent(buttonGO.transform, false);
         var text = textGO.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.fontSize = Mathf.RoundToInt(Mathf.Max(32f, Screen.width * 0.035f));
         text.alignment = TextAnchor.MiddleCenter;
         text.text = label;
         text.color = Color.white;
@@ -132,6 +205,158 @@ public class CMPDemoController : MonoBehaviour
         var button = buttonGO.GetComponent<Button>();
         button.onClick.AddListener(onClick);
         return button;
+    }
+
+    private void AddDemoButtons()
+    {
+        CreateButton(_buttonContent, "Refresh Status", () => UpdateConsentStatus());
+        CreateButton(_buttonContent, "Has Purpose ID c53?", CheckPurposeStatus);
+        CreateButton(_buttonContent, "Has Vendor ID s2789?", CheckVendorStatus);
+        CreateButton(_buttonContent, "Export CMP String", ExportConsent);
+        CreateButton(_buttonContent, "Import CMP String", () => ImportConsentAsync());
+        CreateButton(_buttonContent, "Check & Open", () => CheckAndOpenAsync());
+        CreateButton(_buttonContent, "Force Open", () => ForceOpenAsync());
+        CreateButton(_buttonContent, "Force Open (Jump to Settings)", () => ForceOpenAsync(true));
+        CreateButton(_buttonContent, "Accept All", () => AcceptAllAsync());
+        CreateButton(_buttonContent, "Reject All", () => RejectAllAsync());
+        CreateButton(_buttonContent, "Enable Vendors s2790 / s2791", () => AcceptVendorsAsync());
+        CreateButton(_buttonContent, "Disable Vendors s2790 / s2791", () => RejectVendorsAsync());
+        CreateButton(_buttonContent, "Enable Purposes c52 / c53", () => AcceptPurposesAsync());
+        CreateButton(_buttonContent, "Disable Purposes c52 / c53", () => RejectPurposesAsync());
+        CreateButton(_buttonContent, "Reset Consent Data", () => ResetAsync());
+        CreateButton(_buttonContent, "Google Consent Mode Status", ShowGoogleConsentMode);
+        CreateButton(_buttonContent, "Inspect Stored Consent", InspectStoredData);
+        CreateButton(_buttonContent, "Cycle ATT Status (iOS)", CycleAttStatus);
+    }
+
+    private async void AcceptVendorsAsync()
+    {
+        if (!CheckInitialized()) return;
+
+        try
+        {
+            Log("Enabling vendors s2790 / s2791...");
+            await _cmpManager.AcceptVendorsAsync(_sampleVendors);
+            Log("✓ Vendors enabled.");
+            UpdateConsentStatus();
+        }
+        catch (Exception e)
+        {
+            LogError($"✗ Failed to enable vendors: {e.Message}");
+        }
+    }
+
+    private async void RejectVendorsAsync()
+    {
+        if (!CheckInitialized()) return;
+
+        try
+        {
+            Log("Disabling vendors s2790 / s2791...");
+            await _cmpManager.RejectVendorsAsync(_sampleVendors);
+            Log("✓ Vendors disabled.");
+            UpdateConsentStatus();
+        }
+        catch (Exception e)
+        {
+            LogError($"✗ Failed to disable vendors: {e.Message}");
+        }
+    }
+
+    private async void AcceptPurposesAsync()
+    {
+        if (!CheckInitialized()) return;
+
+        try
+        {
+            Log("Enabling purposes c52 / c53...");
+            await _cmpManager.AcceptPurposesAsync(_samplePurposes, true);
+            Log("✓ Purposes enabled.");
+            UpdateConsentStatus();
+        }
+        catch (Exception e)
+        {
+            LogError($"✗ Failed to enable purposes: {e.Message}");
+        }
+    }
+
+    private async void RejectPurposesAsync()
+    {
+        if (!CheckInitialized()) return;
+
+        try
+        {
+            Log("Disabling purposes c52 / c53...");
+            await _cmpManager.RejectPurposesAsync(_samplePurposes, true);
+            Log("✓ Purposes disabled.");
+            UpdateConsentStatus();
+        }
+        catch (Exception e)
+        {
+            LogError($"✗ Failed to disable purposes: {e.Message}");
+        }
+    }
+
+    private async void ImportConsentAsync()
+    {
+        if (!CheckInitialized()) return;
+
+        try
+        {
+            Log("Importing CMP string...");
+            await _cmpManager.ImportCMPInfoAsync(SampleImportString);
+            Log("✓ CMP string imported.");
+            UpdateConsentStatus();
+        }
+        catch (Exception e)
+        {
+            LogError($"✗ Import failed: {e.Message}");
+        }
+    }
+
+    private void ShowGoogleConsentMode()
+    {
+        if (!CheckInitialized()) return;
+
+        var mode = _cmpManager.GetGoogleConsentModeStatus();
+        var summary = "Google Consent Mode:";
+        foreach (var kvp in mode)
+        {
+            summary += $"\n{kvp.Key}: {kvp.Value}";
+        }
+        Log(summary);
+    }
+
+    private void InspectStoredData()
+    {
+        if (!CheckInitialized()) return;
+
+        string storedJson = PlayerPrefs.GetString("consentJson", "<none>");
+        string storedString = PlayerPrefs.GetString("consentString", "<none>");
+        string metadata = PlayerPrefs.GetString("consentMetadata", "<none>");
+
+        Log($"Stored consent snapshot:\njson: {Shorten(storedJson)}\nstring: {Shorten(storedString)}\nmetadata: {Shorten(metadata)}");
+    }
+
+    private void CheckPurposeStatus()
+    {
+        if (!CheckInitialized()) return;
+        var status = _cmpManager.GetStatusForPurpose("c53");
+        Log($"Purpose c53: {status}");
+    }
+
+    private void CheckVendorStatus()
+    {
+        if (!CheckInitialized()) return;
+        var status = _cmpManager.GetStatusForVendor("s2789");
+        Log($"Vendor s2789: {status}");
+    }
+
+    private void CycleAttStatus()
+    {
+        _currentAttStatus = (_currentAttStatus + 1) % 4;
+        _cmpManager.SetATTStatus(_currentAttStatus);
+        Log($"ATT status set to {_currentAttStatus}");
     }
 
     private async void CheckAndOpenAsync()
@@ -150,14 +375,14 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void ForceOpenAsync()
+    private async void ForceOpenAsync(bool jumpToSettings = false)
     {
         if (!CheckInitialized()) return;
 
         try
         {
             Log("Opening consent layer...");
-            await _cmpManager.ForceOpenAsync();
+            await _cmpManager.ForceOpenAsync(jumpToSettings);
             Log("✓ Consent layer opened");
         }
         catch (Exception e)
@@ -175,6 +400,7 @@ public class CMPDemoController : MonoBehaviour
             Log("Accepting all consents...");
             await _cmpManager.AcceptAllAsync();
             Log("✓ All consents accepted");
+            UpdateConsentStatus();
         }
         catch (Exception e)
         {
@@ -191,6 +417,7 @@ public class CMPDemoController : MonoBehaviour
             Log("Rejecting all consents...");
             await _cmpManager.RejectAllAsync();
             Log("✓ All consents rejected");
+            UpdateConsentStatus();
         }
         catch (Exception e)
         {
@@ -228,21 +455,6 @@ public class CMPDemoController : MonoBehaviour
         {
             Log("No consent data to export");
         }
-    }
-
-    private void GetUserStatus()
-    {
-        if (!CheckInitialized()) return;
-
-        var userStatus = _cmpManager.GetUserStatus();
-        
-        string status = $"User Choice: {userStatus.Status}\n";
-        status += $"Vendors: {userStatus.Vendors.Count}\n";
-        status += $"Purposes: {userStatus.Purposes.Count}\n";
-        status += $"Regulation: {userStatus.Regulation}";
-
-        Log(status);
-        UpdateConsentStatus();
     }
 
     #endregion
@@ -323,6 +535,14 @@ public class CMPDemoController : MonoBehaviour
         {
             statusText.text = $"<color=red>{DateTime.Now:HH:mm:ss} - {message}</color>";
         }
+    }
+
+    private string Shorten(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value == "<none>")
+            return value;
+
+        return value.Length <= 60 ? value : $"{value.Substring(0, 60)}...";
     }
 
     #endregion

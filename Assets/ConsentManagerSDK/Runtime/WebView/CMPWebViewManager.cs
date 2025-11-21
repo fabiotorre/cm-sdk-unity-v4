@@ -58,17 +58,25 @@ namespace ConsentManagerSDK
         {
             _uiConfig = uiConfig;
             _jsonConfig = jsonConfig;
+            RecreateWebView();
+        }
 
-            if (_webView != null)
+        private void EnsureWebView()
+        {
+            if (_webView == null)
             {
-                Debug.LogWarning("[CMPWebViewManager] WebView already initialized");
-                return;
+                RecreateWebView();
             }
+        }
 
-            Debug.Log("[CMPWebViewManager] Initializing WebView");
+        private void RecreateWebView()
+        {
+            DisposeWebView();
+
+            Debug.Log("[CMPWebViewManager] Creating WebView instance");
 
             _webView = new GameObject("CMPWebView").AddComponent<WebViewObject>();
-            
+
             _webView.Init(
                 cb: OnWebViewCallback,
                 err: OnWebViewError,
@@ -81,8 +89,17 @@ namespace ConsentManagerSDK
                 transparent: true
             );
 
-            // Apply WebView positioning
+            _webView.SetVisibility(false);
             ApplyWebViewLayout();
+        }
+
+        private void DisposeWebView()
+        {
+            if (_webView != null)
+            {
+                UnityEngine.Object.Destroy(_webView.gameObject);
+                _webView = null;
+            }
         }
 
         /// <summary>
@@ -98,6 +115,7 @@ namespace ConsentManagerSDK
         /// </summary>
         public Task<bool> LoadConsentURLAsync(string url, UseCase useCase, string consentValue = null, bool noHash = false)
         {
+            EnsureWebView();
             _currentUseCase = useCase;
             _operationCompletion = new TaskCompletionSource<bool>();
 
@@ -172,11 +190,7 @@ namespace ConsentManagerSDK
                 _timeoutCoroutine = null;
             }
 
-            if (_webView != null)
-            {
-                UnityEngine.Object.Destroy(_webView.gameObject);
-                _webView = null;
-            }
+            DisposeWebView();
         }
 
         /// <summary>
