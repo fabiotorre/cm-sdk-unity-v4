@@ -9,10 +9,10 @@ namespace ConsentManagerSDK
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void InitializeBeforeSceneLoad()
         {
-            BootstrapAsync();
+            _ = BootstrapAsync();
         }
 
-        private static async void BootstrapAsync()
+        private static async Task BootstrapAsync()
         {
             var settings = CMPSettings.LoadDefault();
             if (settings == null)
@@ -36,7 +36,8 @@ namespace ConsentManagerSDK
             {
                 var manager = CMPManager.Instance;
                 await manager.InitializeAsync(settings.ToConfig(), settings.ToUIConfig());
-                Debug.Log("[CMPBootstrap] CMP initialized before scene load.");
+                await manager.CheckAndOpenAsync();
+                Debug.Log("[CMPBootstrap] CMP initialized and consent check completed before scene load.");
             }
             catch (Exception ex)
             {

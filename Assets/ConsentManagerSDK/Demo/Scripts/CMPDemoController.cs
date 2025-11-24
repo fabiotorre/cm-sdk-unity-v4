@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using ConsentManagerSDK;
@@ -65,7 +66,7 @@ public class CMPDemoController : MonoBehaviour
             consentStatusText = null;
         }
 
-        var existingCanvas = FindObjectOfType<Canvas>();
+        var existingCanvas = FindFirstObjectByType<Canvas>();
         if (existingCanvas == null)
         {
             var canvasGO = new GameObject("CMP Demo Canvas");
@@ -75,7 +76,7 @@ public class CMPDemoController : MonoBehaviour
             canvasGO.AddComponent<GraphicRaycaster>();
         }
 
-        if (FindObjectOfType<EventSystem>() == null)
+        if (FindFirstObjectByType<EventSystem>() == null)
         {
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -209,27 +210,44 @@ public class CMPDemoController : MonoBehaviour
 
     private void AddDemoButtons()
     {
-        CreateButton(_buttonContent, "Refresh Status", () => UpdateConsentStatus());
+        CreateButton(_buttonContent, "Refresh Status", UpdateConsentStatus);
         CreateButton(_buttonContent, "Has Purpose ID c53?", CheckPurposeStatus);
         CreateButton(_buttonContent, "Has Vendor ID s2789?", CheckVendorStatus);
         CreateButton(_buttonContent, "Export CMP String", ExportConsent);
-        CreateButton(_buttonContent, "Import CMP String", () => ImportConsentAsync());
-        CreateButton(_buttonContent, "Check & Open", () => CheckAndOpenAsync());
-        CreateButton(_buttonContent, "Force Open", () => ForceOpenAsync());
-        CreateButton(_buttonContent, "Force Open (Jump to Settings)", () => ForceOpenAsync(true));
-        CreateButton(_buttonContent, "Accept All", () => AcceptAllAsync());
-        CreateButton(_buttonContent, "Reject All", () => RejectAllAsync());
-        CreateButton(_buttonContent, "Enable Vendors s2790 / s2791", () => AcceptVendorsAsync());
-        CreateButton(_buttonContent, "Disable Vendors s2790 / s2791", () => RejectVendorsAsync());
-        CreateButton(_buttonContent, "Enable Purposes c52 / c53", () => AcceptPurposesAsync());
-        CreateButton(_buttonContent, "Disable Purposes c52 / c53", () => RejectPurposesAsync());
-        CreateButton(_buttonContent, "Reset Consent Data", () => ResetAsync());
+        CreateButton(_buttonContent, "Import CMP String", () => QueueAsync(ImportConsentAsync));
+        CreateButton(_buttonContent, "Check & Open", () => QueueAsync(CheckAndOpenAsync));
+        CreateButton(_buttonContent, "Force Open", () => QueueAsync(() => ForceOpenAsync()));
+        CreateButton(_buttonContent, "Force Open (Jump to Settings)", () => QueueAsync(() => ForceOpenAsync(true)));
+        CreateButton(_buttonContent, "Accept All", () => QueueAsync(AcceptAllAsync));
+        CreateButton(_buttonContent, "Reject All", () => QueueAsync(RejectAllAsync));
+        CreateButton(_buttonContent, "Enable Vendors s2790 / s2791", () => QueueAsync(AcceptVendorsAsync));
+        CreateButton(_buttonContent, "Disable Vendors s2790 / s2791", () => QueueAsync(RejectVendorsAsync));
+        CreateButton(_buttonContent, "Enable Purposes c52 / c53", () => QueueAsync(AcceptPurposesAsync));
+        CreateButton(_buttonContent, "Disable Purposes c52 / c53", () => QueueAsync(RejectPurposesAsync));
+        CreateButton(_buttonContent, "Reset Consent Data", () => QueueAsync(ResetAsync));
         CreateButton(_buttonContent, "Google Consent Mode Status", ShowGoogleConsentMode);
         CreateButton(_buttonContent, "Inspect Stored Consent", InspectStoredData);
         CreateButton(_buttonContent, "Cycle ATT Status (iOS)", CycleAttStatus);
     }
 
-    private async void AcceptVendorsAsync()
+    private void QueueAsync(Func<Task> operation)
+    {
+        _ = RunOperation();
+
+        async Task RunOperation()
+        {
+            try
+            {
+                await operation();
+            }
+            catch (Exception ex)
+            {
+                LogError($"Unexpected error: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task AcceptVendorsAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -246,7 +264,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void RejectVendorsAsync()
+    private async Task RejectVendorsAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -263,7 +281,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void AcceptPurposesAsync()
+    private async Task AcceptPurposesAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -280,7 +298,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void RejectPurposesAsync()
+    private async Task RejectPurposesAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -297,7 +315,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void ImportConsentAsync()
+    private async Task ImportConsentAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -359,7 +377,7 @@ public class CMPDemoController : MonoBehaviour
         Log($"ATT status set to {_currentAttStatus}");
     }
 
-    private async void CheckAndOpenAsync()
+    private async Task CheckAndOpenAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -375,7 +393,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void ForceOpenAsync(bool jumpToSettings = false)
+    private async Task ForceOpenAsync(bool jumpToSettings = false)
     {
         if (!CheckInitialized()) return;
 
@@ -391,7 +409,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void AcceptAllAsync()
+    private async Task AcceptAllAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -408,7 +426,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void RejectAllAsync()
+    private async Task RejectAllAsync()
     {
         if (!CheckInitialized()) return;
 
@@ -425,7 +443,7 @@ public class CMPDemoController : MonoBehaviour
         }
     }
 
-    private async void ResetAsync()
+    private async Task ResetAsync()
     {
         if (!CheckInitialized()) return;
 
