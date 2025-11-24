@@ -1,382 +1,189 @@
-# Consent Manager SDK v4 for Unity
+# Consentmanager Unity CMP SDK (v4)
 
-Pure C# Consent Management Platform SDK for Unity with modern async/await API. Built on unity-webview, this SDK provides GDPR, CCPA, and privacy compliance for iOS and Android without native dependencies.
+Modern, pure C# implementation of the consentmanager CMP for Unity.  
+This package embeds the same storage format and behavioural model as the native Android/iOS SDKs while exposing an idiomatic Unity API built on async/await.
 
-## Features
+---
 
-- ✨ **Pure C#** - No native iOS/Android bridges required
-- 🚀 **Modern API** - Async/await throughout
-- 📱 **Cross-Platform** - iOS and Android support
-- 💾 **Storage Compatible** - Reads/writes same storage as native SDKs
-- 🎨 **Customizable UI** - Flexible layout and styling options
-- ⚡ **Offline-First** - Local consent queries without network calls
-- 🔄 **Google Consent Mode v2** - Built-in support
+## Table of Contents
+1. [Requirements](#requirements)  
+2. [Repository layout](#repository-layout)  
+3. [Installation](#installation)  
+4. [Configuration](#configuration)  
+5. [Quick start](#quick-start)  
+6. [Public API](#public-api)  
+7. [Demo scene](#demo-scene)  
+8. [Platform specifics](#platform-specifics)  
+9. [Troubleshooting](#troubleshooting)  
+10. [Migration from native SDKs](#migration-from-native-sdks)  
+11. [Support](#support)  
+
+---
 
 ## Requirements
 
-- Unity 2020.3 or newer
-- iOS 12.0+ (uses WKWebView)
-- Android 5.0+ (API 21+)
-- Newtonsoft.Json (Json.NET for Unity)
+- Unity **2020.3 LTS** or newer (tested with Unity 6.0.2f1)  
+- iOS 12+ (WKWebView) / Android 5.0+ (API 21)  
+- `com.unity.nuget.newtonsoft-json` 3.x (installed by default via `Packages/manifest.json`)  
+- Internet permission on Android (`<uses-permission android:name="android.permission.INTERNET"/>`)  
+
+---
+
+## Repository layout
+
+```
+Assets/ConsentManagerSDK/
+ ├── Runtime/             # CMP core, storage, webview manager, bootstrap
+ ├── Plugins/             # unity-webview sources + Android/iOS native templates
+ ├── Demo/                # Playable scene + controller showcasing every API
+ ├── package.json         # Unity Package Manager metadata
+ └── Editor/              # Build-time validators
+```
+
+---
 
 ## Installation
 
-### Option 1: Unity Package Manager (Recommended)
+### Option A – Unity Package Manager (recommended)
+1. Clone or copy this repository.  
+2. In Unity, open **Window ▸ Package Manager**.  
+3. Click the **+** button → **Add package from disk…**.  
+4. Select `Assets/ConsentManagerSDK/package.json`.  
 
-1. Open Unity Package Manager (Window > Package Manager)
-2. Click "+" and select "Add package from disk"
-3. Navigate to `Assets/ConsentManagerSDK/package.json`
-4. Click "Open"
+### Option B – Direct copy
+1. Copy `Assets/ConsentManagerSDK` into your own project’s `Assets`.  
+2. Ensure the Newtonsoft Json package is present (either via UPM or Asset Store).  
 
-### Option 2: Direct Import
+---
 
-1. Copy the `Assets/ConsentManagerSDK` folder to your project's Assets directory
-2. Ensure Newtonsoft.Json is installed (available on Unity Asset Store)
+## Configuration
 
-## Quick Start
+### CMPSettings asset
+1. Locate `Assets/ConsentManagerSDK/Runtime/Resources/CMPSettings.asset`.  
+2. Fill in your **CMP ID**, **domain**, **language**, and **app name**.  
+3. Toggle *Respect App Name* if the Unity product name should be sent automatically.  
+4. Adjust UI defaults (layout style, dark mode) and *Auto Initialize* as needed.  
 
-### 1. Initialize the SDK
+During builds a validator ensures placeholders are not shipped. At runtime `CMPBootstrap`:
+1. Creates/initializes `CMPManager`.  
+2. Runs `CheckAndOpenAsync()` before any other SDKs can start (ensuring consent gating).  
+
+---
+
+## Quick start
 
 ```csharp
 using ConsentManagerSDK;
+using UnityEngine;
 
-public class GameManager : MonoBehaviour
+public class CMPExample : MonoBehaviour
 {
     async void Start()
     {
-        // Configure CMP
-        var config = new CMPConfig(
-            id: "your-cmp-id",
-            domain: "delivery.consentmanager.net",
-            language: "EN",
-            appName: "Your Game"
-        );
+        // Optional: override settings programmatically
+        var config = new CMPConfig("your-id", "a.delivery.consentmanager.net", "EN", Application.productName);
+        var ui    = CMPUIConfig.BottomHalf();
 
-        // Configure UI (optional)
-        var uiConfig = CMPUIConfig.BottomHalf(); // Recommended for games
-
-        // Initialize
         try
         {
-            await CMPManager.Instance.InitializeAsync(config, uiConfig);
-            Debug.Log("CMP initialized successfully");
+            await CMPManager.Instance.InitializeAsync(config, ui);
+            await CMPManager.Instance.CheckAndOpenAsync();
+            Debug.Log("CMP ready");
         }
-        catch (Exception e)
+        catch (System.Exception ex)
         {
-            Debug.LogError($"CMP initialization failed: {e.Message}");
+            Debug.LogError($"CMP init failed: {ex.Message}");
         }
+    }
+
+    public async void ForceOpenConsent()
+    {
+        await CMPManager.Instance.ForceOpenAsync();
     }
 }
 ```
 
-### 2. Check and Show Consent Layer
+Important:
+- Access `CMPManager.Instance` only after initialization (or check `CMPManager.Instance.IsInitialized`).  
+- Register to `OnConsentReceived`, `OnConsentLayerOpened/Closed`, and `OnError` for state changes.  
 
-```csharp
-// Check if consent is needed and show layer if required
-await CMPManager.Instance.CheckAndOpenAsync();
+---
 
-// Or force open the consent layer
-await CMPManager.Instance.ForceOpenAsync();
-```
+## Public API
 
-### 3. Access Consent Status (Offline)
+All async methods return `Task`, so they can be awaited or combined with Unity `AsyncOperation` wrappers.  
+Key methods:
 
-```csharp
-// Check specific purpose
-ConsentStatus analyticsStatus = CMPManager.Instance.GetStatusForPurpose("analytics");
-if (analyticsStatus == ConsentStatus.Granted)
-{
-    // Enable analytics
-}
+| Method | Description |
+| --- | --- |
+| `InitializeAsync(CMPConfig, CMPUIConfig)` | Creates storage, webview, and JS bridge |
+| `CheckAndOpenAsync(bool jumpToSettings)` | Verifies consent status and shows layer only if required |
+| `ForceOpenAsync(bool jumpToSettings)` | Always opens the consent layer |
+| `AcceptAllAsync()` / `RejectAllAsync()` | Convenience shortcuts for full opt-in/out |
+| `AcceptPurposesAsync(string[], bool)` / `RejectPurposesAsync` | Batch manage purposes |
+| `AcceptVendorsAsync(string[])` / `RejectVendorsAsync` | Batch manage vendors |
+| `ImportCMPInfoAsync(string)` / `ExportCMPInfo()` | Move consent strings cross-platform |
+| `ResetConsentManagementDataAsync()` | Clears consent storage |
+| `GetUserStatus()` / `GetStatusForPurpose(string)` / `GetStatusForVendor(string)` | Offline snapshot queries |
+| `GetGoogleConsentModeStatus()` | Returns a dictionary ready for GCM v2 |
+| `SetATTStatus(int)` | iOS ATTrackingManager status (0–3) |
 
-// Check specific vendor
-ConsentStatus googleStatus = CMPManager.Instance.GetStatusForVendor("s2789");
+Events:
+- `OnConsentReceived(string cmpString, JObject fullJson)`  
+- `OnConsentLayerOpened` / `OnConsentLayerClosed`  
+- `OnError(string message)`  
 
-// Get full user status
-CMPUserStatusResponse userStatus = CMPManager.Instance.GetUserStatus();
+---
 
-// Get Google Consent Mode status
-Dictionary<string, string> gcm = CMPManager.Instance.GetGoogleConsentModeStatus();
-```
+## Demo scene
 
-### 4. Programmatic Consent Management
+`Assets/ConsentManagerSDK/Demo/Scenes/CMPDemoScene.unity` contains:
+- Auto-generated full-screen UI with scrollable buttons for **every** public API call.  
+- Live status panel showing consent summary and Google Consent Mode values.  
 
-```csharp
-// Accept all consents
-await CMPManager.Instance.AcceptAllAsync();
+Use this scene to validate flows and to see sample code in `CMPDemoController.cs`.  
 
-// Reject all consents
-await CMPManager.Instance.RejectAllAsync();
+---
 
-// Accept specific purposes
-await CMPManager.Instance.AcceptPurposesAsync(
-    new[] { "analytics", "marketing" },
-    updateVendors: true
-);
-
-// Accept specific vendors
-await CMPManager.Instance.AcceptVendorsAsync(new[] { "s2789", "s2790" });
-```
-
-### 5. Listen to Events
-
-```csharp
-void Start()
-{
-    var cmp = CMPManager.Instance;
-    
-    cmp.OnConsentReceived += (consent, json) => 
-    {
-        Debug.Log("Consent received");
-        // Update your analytics/tracking based on new consent
-    };
-    
-    cmp.OnConsentLayerOpened += () => 
-    {
-        Debug.Log("Consent layer opened");
-        // Pause game, etc.
-    };
-    
-    cmp.OnConsentLayerClosed += () => 
-    {
-        Debug.Log("Consent layer closed");
-        // Resume game, etc.
-    };
-    
-    cmp.OnError += (error) => 
-    {
-        Debug.LogError($"CMP Error: {error}");
-    };
-}
-```
-
-## UI Configuration
-
-### Layout Styles
-
-```csharp
-// Full screen (default for consent forms)
-var uiConfig = CMPUIConfig.FullScreen();
-
-// Top half of screen
-var uiConfig = CMPUIConfig.TopHalf();
-
-// Bottom half of screen (recommended for games)
-var uiConfig = CMPUIConfig.BottomHalf();
-```
-
-### Custom Styling
-
-```csharp
-var uiConfig = new CMPUIConfig(CMPLayoutStyle.BottomHalf)
-{
-    Background = CMPBackgroundType.Dimmed,
-    BackgroundColor = Color.black,
-    BackgroundAlpha = 0.7f,
-    CornerRadius = 16f,
-    DarkMode = true,
-    RespectsSafeArea = true,
-    AllowsOrientationChanges = true
-};
-```
-
-## Platform-Specific Configuration
+## Platform specifics
 
 ### iOS
-
-The SDK uses WKWebView and requires network permissions. The unity-webview plugin automatically handles `Info.plist` modifications.
-
-For ATT (App Tracking Transparency) integration:
-
-```csharp
-#if UNITY_IOS
-using UnityEngine.iOS;
-
-// Get ATT status
-var attStatus = (int)Device.RequestStoreReview(); // Use proper ATT framework
-CMPManager.Instance.SetATTStatus(attStatus);
-#endif
-```
+- Uses WKWebView via `unity-webview`.  
+- ATT helper button (`Cycle ATT Status`) toggles values 0–3 for testing.  
+- All WebView interactions happen before other SDKs because `CheckAndOpenAsync` is invoked during bootstrap.  
 
 ### Android
+- Requires internet permission in your manifest (added automatically for Unity Player).  
+- The plugin copies `.aar` templates from `Assets/ConsentManagerSDK/Plugins/unity-webview/Android`.  
+- On build the postprocessor injects AndroidX dependencies and manifest entries.  
 
-The SDK uses standard WebView with hardware acceleration. Ensure your `AndroidManifest.xml` has:
-
-```xml
-<application android:hardwareAccelerated="true">
-```
-
-For API 28+, cleartext traffic:
-
-```xml
-<application android:usesCleartextTraffic="true">
-```
-
-## Advanced Usage
-
-### Import/Export Consent
-
-```csharp
-// Export consent string (for backup or transfer)
-string consentString = CMPManager.Instance.ExportCMPInfo();
-PlayerPrefs.SetString("consent_backup", consentString);
-
-// Import consent string (restore from backup)
-string savedConsent = PlayerPrefs.GetString("consent_backup");
-if (!string.IsNullOrEmpty(savedConsent))
-{
-    await CMPManager.Instance.ImportCMPInfoAsync(savedConsent);
-}
-```
-
-### Reset Consent
-
-```csharp
-// Clear all consent data
-await CMPManager.Instance.ResetConsentManagementDataAsync();
-```
-
-### Google Consent Mode Integration
-
-```csharp
-// Get consent mode status for Firebase Analytics, Google Ads, etc.
-var consentMode = CMPManager.Instance.GetGoogleConsentModeStatus();
-
-// Keys: analytics_storage, ad_storage, ad_user_data, ad_personalization
-// Values: "granted" or "denied"
-
-// Update Firebase Analytics
-#if UNITY_ANDROID || UNITY_IOS
-Firebase.Analytics.FirebaseAnalytics.SetConsent(new Dictionary<string, string>
-{
-    { Firebase.Analytics.ConsentType.AnalyticsStorage.ToString(), 
-      consentMode["analytics_storage"] },
-    { Firebase.Analytics.ConsentType.AdStorage.ToString(), 
-      consentMode["ad_storage"] }
-});
-#endif
-```
-
-## Storage Compatibility
-
-This SDK uses the same storage keys and format as the native iOS and Android SDKs:
-
-- **iOS**: `NSUserDefaults` (via `PlayerPrefs`)
-  - Keys: `consentJson`, `consentString`, `consentMetadata`
-- **Android**: `SharedPreferences` (default preferences)
-  - Keys: `consentJson`, `consentString`, individual metadata keys
-
-This means you can migrate from native SDKs to v4 without losing consent data.
-
-## API Reference
-
-### CMPManager
-
-Main singleton manager for SDK operations.
-
-#### Initialization
-
-- `Task InitializeAsync(CMPConfig, CMPUIConfig)` - Initialize SDK
-
-#### Network Operations (async)
-
-- `Task CheckAndOpenAsync(bool jumpToSettings)` - Check and show if needed
-- `Task ForceOpenAsync(bool jumpToSettings)` - Force show consent layer
-- `Task AcceptAllAsync()` - Accept all consents
-- `Task RejectAllAsync()` - Reject all consents
-- `Task AcceptPurposesAsync(string[], bool)` - Accept specific purposes
-- `Task RejectPurposesAsync(string[], bool)` - Reject specific purposes
-- `Task AcceptVendorsAsync(string[])` - Accept specific vendors
-- `Task RejectVendorsAsync(string[])` - Reject specific vendors
-- `Task ImportCMPInfoAsync(string)` - Import consent string
-- `Task ResetConsentManagementDataAsync()` - Clear all data
-
-#### Offline Data Access (sync)
-
-- `ConsentStatus GetStatusForPurpose(string)` - Get purpose consent status
-- `ConsentStatus GetStatusForVendor(string)` - Get vendor consent status
-- `CMPUserStatusResponse GetUserStatus()` - Get complete user status
-- `Dictionary<string, string> GetGoogleConsentModeStatus()` - Get GCM status
-- `string ExportCMPInfo()` - Export consent string
-
-#### Configuration
-
-- `void SetATTStatus(int)` - Set iOS ATT status
-- `void UpdateUIConfig(CMPUIConfig)` - Update UI configuration
-
-#### Events
-
-- `event Action<string, JObject> OnConsentReceived` - Consent received
-- `event Action OnConsentLayerOpened` - Layer opened
-- `event Action OnConsentLayerClosed` - Layer closed
-- `event Action<string> OnError` - Error occurred
+---
 
 ## Troubleshooting
 
-### WebView not showing
+| Symptom | Fix |
+| --- | --- |
+| `net::ERR_CACHE_MISS` when forcing open repeatedly | Ensure internet permission is present and allow the bootstrap `CheckAndOpenAsync` to complete before another force open. |
+| Buttons not visible in demo | Make sure you are using the provided demo scene; any legacy serialized references will be destroyed at runtime so the overlay can rebuild itself. |
+| Build fails complaining about placeholders | Update `CMPSettings.asset` with your real CMP ID/domain. |
+| First consent load is slow on iOS | Expected—the bootstrap warm-up creates the WebView and runs `CheckAndOpenAsync`. Subsequent calls use the warmed WebKit process. |
 
-- Ensure you've called `InitializeAsync()` before other operations
-- Check that `CMPConfig` is valid (ID, domain, language, appName)
-- Verify network connectivity
-- Check Unity console for errors
+---
 
-### Consent data not persisting
+## Migration from native SDKs
 
-- On iOS: Ensure `PlayerPrefs.Save()` permissions
-- On Android: Ensure storage permissions if needed
-- Check that consent is actually being saved (listen to `OnConsentReceived`)
+- Storage keys (`consentJson`, `consentString`, etc.) match Android `SharedPreferences` and iOS `NSUserDefaults`.  
+- Remove old native bridge plugins before importing this package.  
+- Replace legacy callbacks with the async equivalents (see the “Quick start” section).  
+- If you used custom layouts on native, port the configuration values into `CMPUIConfig` or adjust the native html.  
 
-### Build errors
-
-- Ensure Newtonsoft.Json is installed
-- Verify unity-webview plugin files are present
-- Check platform-specific build settings (iOS: WKWebView, Android: hardware acceleration)
-
-## Migration from v3
-
-If migrating from the native bridge SDK (v3):
-
-1. Remove old native bridge files:
-   - `Plugins/iOS/ConsentManagerBridge.*`
-   - `Plugins/Android/ConsentManagerBridge.java`
-
-2. Update initialization:
-   ```csharp
-   // Old v3
-   ConsentManager.Instance.Initialize(id, domain, language, appName);
-   
-   // New v4
-   await CMPManager.Instance.InitializeAsync(config, uiConfig);
-   ```
-
-3. Replace callbacks with async/await:
-   ```csharp
-   // Old v3
-   ConsentManager.Instance.CheckAndOpen(jumpToSettings: false);
-   
-   // New v4
-   await CMPManager.Instance.CheckAndOpenAsync(jumpToSettings: false);
-   ```
-
-4. Consent data is automatically preserved (same storage format)
+---
 
 ## Support
 
-- Documentation: [https://help.consentmanager.net](https://help.consentmanager.net)
-- Dashboard: [https://www.consentmanager.net](https://www.consentmanager.net)
-- Email: support@consentmanager.net
+- Documentation & Help Center: **https://help.consentmanager.net**  
+- Dashboard: **https://www.consentmanager.net**  
+- Email: **support@consentmanager.net**  
+- Issues & feature requests can be filed via your consentmanager support channel.  
 
-## License
-
-Copyright © 2024 Consent Manager. All rights reserved.
-
-## Changelog
-
-### Version 4.0.0
-- Initial release of pure C# SDK
-- Modern async/await API
-- Cross-platform support (iOS, Android)
-- Storage compatibility with native SDKs
-- Google Consent Mode v2 support
-- Offline-first consent queries
-
+© 2024 consentmanager. All rights reserved.
