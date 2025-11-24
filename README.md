@@ -1,7 +1,22 @@
 # Consentmanager Unity CMP SDK (v4)
 
-Modern, pure C# implementation of the consentmanager CMP for Unity.  
-This package embeds the same storage format and behavioural model as the native Android/iOS SDKs while exposing an idiomatic Unity API built on async/await.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Unity 2020.3+](https://img.shields.io/badge/unity-2020.3%2B-black.svg)](#requirements)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey.svg)](#platform-specifics)
+[![UPM](https://img.shields.io/badge/UPM-ready-success.svg)](#installation)
+
+Pure C# GDPR/CCPA/IAB TCF 2.2 Consent Management Platform SDK for Unity with modern async/await API.  
+Targets Google Consent Mode v2, ships iOS/Android parity with native consentmanager SDKs, and keeps storage fully compatible for cross-platform games.
+
+---
+
+## Why this SDK
+
+- Mobile-first CMP for Unity with zero native code to maintain.
+- IAB TCF 2.2 + Google Consent Mode v2 ready; exports/imports native consent strings.
+- Predictable bootstrap: runs consent gating before any analytics/ads SDKs start.
+- Minimal footprint: async/await API, no coroutines, no external dependencies beyond Newtonsoft JSON.
+- Drop-in demo scene and validators to prevent misconfiguration at build time.
 
 ---
 
@@ -44,13 +59,23 @@ Assets/ConsentManagerSDK/
 
 ## Installation
 
-### Option A – Unity Package Manager (recommended)
-1. Clone or copy this repository.  
+### Option A – Unity Package Manager via Git (recommended)
+Add the dependency in `Packages/manifest.json`:
+```json
+"dependencies": {
+  "net.consentmanager.sdk": "https://github.com/fabiotorre/cm-sdk-unity-v4.git?path=Assets/ConsentManagerSDK",
+  "...": "..."
+}
+```
+Or use **Window ▸ Package Manager ▸ + ▸ Add package from git URL…** with the same URL.
+
+### Option B – Unity Package Manager from disk
+1. Clone or download this repository.  
 2. In Unity, open **Window ▸ Package Manager**.  
 3. Click the **+** button → **Add package from disk…**.  
 4. Select `Assets/ConsentManagerSDK/package.json`.  
 
-### Option B – Direct copy
+### Option C – Direct copy
 1. Copy `Assets/ConsentManagerSDK` into your own project’s `Assets`.  
 2. Ensure the Newtonsoft Json package is present (either via UPM or Asset Store).  
 
@@ -182,8 +207,9 @@ Use this scene to validate flows and to see sample code in `CMPDemoController.cs
 ## Support
 
 - Documentation & Help Center: **https://help.consentmanager.net**  
-- Dashboard: **https://www.consentmanager.net**  
+- Dashboard: **https://app.consentmanager.net**  
 - Email: **support@consentmanager.net**  
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)  
 - Issues & feature requests can be filed via your consentmanager support channel.  
 
 © 2024 consentmanager. All rights reserved.

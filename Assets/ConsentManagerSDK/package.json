@@ -3,8 +3,12 @@
   "displayName": "Consent Manager SDK",
   "version": "4.0.0",
   "unity": "2020.3",
-  "description": "Pure C# Consent Management SDK for Unity with modern async/await API. Supports iOS and Android platforms for GDPR, CCPA, and privacy compliance without native dependencies.",
+  "description": "Pure C# Consent Management SDK for Unity with modern async/await API. Supports iOS and Android for GDPR, CCPA, IAB TCF 2.2, and Google Consent Mode v2 without native dependencies.",
   "keywords": [
+    "unity",
+    "mobile",
+    "ios",
+    "android",
     "consent",
     "gdpr",
     "ccpa",
@@ -12,11 +16,24 @@
     "cmp",
     "tcf",
     "consent-management",
-    "webview"
+    "webview",
+    "google-consent-mode",
+    "iab",
+    "cookie-banner"
   ],
   "author": {
     "name": "Consent Manager",
     "url": "https://www.consentmanager.net"
+  },
+  "documentationUrl": "https://help.consentmanager.net",
+  "changelogUrl": "https://github.com/fabiotorre/cm-sdk-unity-v4/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/fabiotorre/cm-sdk-unity-v4/blob/main/LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fabiotorre/cm-sdk-unity-v4.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fabiotorre/cm-sdk-unity-v4/issues"
   },
   "dependencies": {},
   "samples": [
@@ -27,4 +44,3 @@
     }
   ]
 }
-
