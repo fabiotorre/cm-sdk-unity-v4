@@ -86,7 +86,8 @@ namespace ConsentManagerSDK
                 ld: OnWebViewLoaded,
                 enableWKWebView: true,
                 wkContentMode: 0,
-                transparent: true
+                transparent: true,
+                radius: Mathf.RoundToInt(_uiConfig?.CornerRadius ?? 0)
             );
 
             _webView.SetVisibility(false);
